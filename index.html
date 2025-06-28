@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>GoodReads Books Scatter Plots</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+      background: #fdfdfd;
+      color: #222
+    }
+
+    svg {
+      width: 100%;
+      height: 350px
+    }
+
+    .grid line {
+      stroke: #eee
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: .8rem
+    }
+
+  </style>
+</head>
+
+<body class="container py-4">
+  <h1 class="h3 mb-4">GoodReads Books Scatter Plots</h1>
+  <div id="status">Loading data...</div>
+  <div id="plots"></div>
+  <footer class="mt-4 small text-center">Data from <a href="https://goodreads.com">GoodReads</a></footer>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script type="module">
+    const status = document.getElementById('status')
+    fetch('scatter_data.json').then(r => r.json()).then(d => {
+      status.remove();
+      init(d)
+    }).catch(() => status.textContent = 'Error loading data')
+    const charts = [{
+        x: d => d.pages,
+        y: d => d.rating,
+        label: 'Pages vs Rating'
+      },
+      {
+        x: d => d.blurb,
+        y: d => d.rating,
+        label: 'Blurb Length vs Rating'
+      },
+      {
+        x: d => Math.log10(d.reviews),
+        y: d => d.rating,
+        label: 'log₁₀(Reviews) vs Rating'
+      }
+    ]
+
+    function init(data) {
+      const box = document.getElementById('plots');
+      box.innerHTML = ''
+      charts.forEach(c => {
+        box.insertAdjacentHTML('beforeend', `<h2 class="h5">${c.label}</h2><svg></svg>`);
+        draw(box.lastElementChild, data, c)
+      })
+      window.addEventListener('resize', () => box.querySelectorAll('svg').forEach((s, i) => draw(s, data, charts[i])))
+    }
+
+    function draw(svg, data, cfg) {
+      svg.innerHTML = '';
+      const w = svg.clientWidth,
+        h = svg.clientHeight,
+        m = 40
+      const x = d3.scaleLinear(d3.extent(data, cfg.x), [m, w - m])
+      const y = d3.scaleLinear(d3.extent(data, cfg.y), [h - m, m])
+      const g = d3.select(svg)
+      g.append('g').attr('transform', `translate(${m},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-w + 2 * m))
+      g.append('g').attr('transform', `translate(0,${h-m})`).call(d3.axisBottom(x).ticks(5).tickSize(-h + 2 * m))
+      g.selectAll('circle').data(data).join('circle').attr('cx', d => x(cfg.x(d))).attr('cy', d => y(cfg.y(d))).attr('r', 6).attr('fill', 'steelblue').attr('opacity', 0.2).append('title').text(d => `${cfg.x(d)}, ${cfg.y(d)}`)
+      const line = d3.line().curve(d3.curveMonotoneX)
+      const loessData = loess(data.map(cfg.x), data.map(cfg.y))
+      g.append('path').attr('fill', 'none').attr('stroke', 'orange').attr('stroke-width', 2).attr('d', line(loessData.map(p => [x(p[0]), y(p[1])])))
+    }
+
+    function loess(x, y, bw = 0.3) {
+      const n = x.length,
+        r = Math.floor(bw * n),
+        idx = d3.range(n).sort((a, b) => x[a] - x[b])
+      x = idx.map(i => x[i]);
+      y = idx.map(i => y[i]);
+      const res = []
+      for (let i = 0; i < n; i++) {
+        const lo = Math.max(0, i - r),
+          hi = Math.min(n - 1, i + r),
+          x0 = x[i];
+        let w = 0,
+          sx = 0,
+          sy = 0,
+          sxx = 0,
+          sxy = 0
+        const slice = d3.range(lo, hi + 1),
+          xS = slice.map(j => x[j]),
+          yS = slice.map(j => y[j])
+        const dist = Math.max(xS[xS.length - 1] - x0, x0 - xS[0]) || 1
+        for (let j = 0; j < xS.length; j++) {
+          const tmp = tricube(Math.abs(xS[j] - x0) / dist);
+          w += tmp;
+          sx += tmp * xS[j];
+          sy += tmp * yS[j];
+          sxx += tmp * xS[j] * xS[j];
+          sxy += tmp * xS[j] * yS[j]
+        }
+        const denom = w * sxx - sx * sx,
+          b = denom ? (w * sxy - sx * sy) / denom : 0,
+          a = (sy - b * sx) / w;
+        res.push([x0, a + b * x0])
+      }
+      return res
+    }
+    const tricube = t => {
+      t = Math.abs(t);
+      t = 1 - t * t * t;
+      return t * t * t
+    }
+
+  </script>
+</body>
+
+</html>
