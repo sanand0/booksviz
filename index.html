@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Goodreads Books Visualization</title>
+<style>
+  body {
+    font-family: "Segoe UI", "Roboto", sans-serif;
+    background: #fff;
+    color: #222;
+    margin: 0;
+    padding: 1rem
+  }
+
+  svg {
+    width: 100%;
+    height: 350px
+  }
+
+  .grid line {
+    stroke: #ccc;
+    stroke-opacity: .3
+  }
+
+  circle {
+    fill: steelblue;
+    opacity: .2
+  }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 2px 4px;
+    font-size: .8rem
+  }
+
+  footer {
+    margin: 2rem 0;
+    font-size: .8rem;
+    text-align: center;
+    color: #555
+  }
+
+</style>
+
+<body>
+  <div id="loading">Loading…</div>
+  <div id="plots"></div>
+  <footer>Data from <a href="https://www.goodreads.com/">Goodreads</a></footer>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script type="module">
+    const plots = [{
+        x: d => d.pages,
+        label: 'Pages',
+        id: 'p'
+      },
+      {
+        x: d => d.blurb,
+        label: 'Blurb Length',
+        id: 'b'
+      },
+      {
+        x: d => Math.log10(d.reviews),
+        label: 'log10(Reviews)',
+        id: 'r'
+      }
+    ];
+    const load = document.getElementById('loading');
+    fetch('scatter_data.json').then(r => r.json()).then(data => {
+      load.remove();
+      init(data)
+    }).catch(err => {
+      load.textContent = 'Error loading data'
+    });
+
+    function init(data) {
+      const wrap = document.getElementById('plots');
+      plots.forEach(p => wrap.insertAdjacentHTML('beforeend', `<svg id="${p.id}"></svg>`));
+      const tip = d3.select('body').append('div').attr('class', 'tooltip').style('display', 'none');
+
+      function render() {
+        plots.forEach(cfg => draw(cfg));
+      }
+
+      function draw(cfg) {
+        const svg = d3.select('#' + cfg.id);
+        const box = svg.node().getBoundingClientRect();
+        const margin = {
+          top: 20,
+          right: 30,
+          bottom: 30,
+          left: 40
+        };
+        const w = box.width - margin.left - margin.right;
+        const h = 350 - margin.top - margin.bottom;
+        svg.selectAll('*').remove();
+        const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+        const x = d3.scaleLinear().domain(d3.extent(data, cfg.x)).nice().range([0, w]);
+        const y = d3.scaleLinear().domain(d3.extent(data, d => d.rating)).nice().range([h, 0]);
+        const ax = g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x).ticks(6));
+        const ay = g.append('g').call(d3.axisLeft(y).ticks(6));
+        g.append('g').attr('class', 'grid').call(d3.axisLeft(y).tickSize(-w).tickFormat(''));
+        g.append('g').selectAll('circle').data(data).join('circle').attr('cx', d => x(cfg.x(d))).attr('cy', d => y(d.rating)).attr('r', 3).on('mousemove', (e, d) => {
+          tip.style('display', 'block').style('left', e.pageX + 5 + 'px').style('top', e.pageY + 5 + 'px').html(`${cfg.label}: ${cfg.x(d).toFixed(2)}<br>Rating: ${d.rating}`);
+        }).on('mouseleave', () => tip.style('display', 'none'));
+        const l = loess(data.map(cfg.x), data.map(d => d.rating));
+        const line = d3.line().curve(d3.curveMonotoneX)(l.map(([px, py]) => [x(px), y(py)]));
+        g.append('path').attr('fill', 'none').attr('stroke', 'orange').attr('stroke-width', 2).attr('d', line);
+        g.append('text').attr('x', w / 2).attr('y', h + margin.bottom - 4).attr('text-anchor', 'middle').text(cfg.label);
+        g.append('text').attr('transform', 'rotate(-90)').attr('x', -h / 2).attr('y', -margin.left + 12).attr('text-anchor', 'middle').text('Rating');
+      }
+      window.addEventListener('resize', render);
+      render();
+    }
+
+    function loess(x, y) {
+      const n = x.length,
+        bw = Math.floor(n * .3);
+      return x.map((v, i) => {
+        const s = Math.max(0, i - bw),
+          e = Math.min(n - 1, i + bw);
+        let sx = 0,
+          sy = 0,
+          sxx = 0,
+          sxy = 0,
+          w = 0;
+        for (let j = s; j <= e; j++) {
+          sx += x[j];
+          sy += y[j];
+          sxx += x[j] * x[j];
+          sxy += x[j] * y[j];
+          w++;
+        }
+        const mx = sx / w,
+          my = sy / w;
+        const denom = sxx - sx * mx;
+        const b = denom ? (sxy - sx * my) / denom : 0;
+        return [v, my + b * (v - mx)];
+      });
+    }
+
+  </script>
+</body>
+
+</html>
