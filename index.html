@@ -39,9 +39,24 @@
 
         async function initCharts() {
             window.chartsInitialized = true; // Flag for timeout logic
-            const data = await d3.json("scatter_data.json");
-            if (!data || data.length === 0) {
-                console.error("Failed to load data or data is empty.");
+            try {
+                const response = await fetch("scatter_data.json");
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    console.error("Failed to load data or data is empty after fetch.");
+                    PLOT_CONFIG.forEach(cfg => {
+                        const el = document.getElementById(cfg.id);
+                        if (el) el.innerHTML = `<p style='text-align:center; padding:20px;'>Error loading data for ${cfg.title}.</p>`;
+                    });
+                    return;
+                }
+                PLOT_CONFIG.forEach(cfg => createScatterPlot(data, cfg));
+            } catch (error) {
+                console.error("Error fetching or processing scatter_data.json:", error);
                 PLOT_CONFIG.forEach(cfg => {
                     document.getElementById(cfg.id).innerHTML = `<p style='text-align:center; padding:20px;'>Error loading data for ${cfg.title}.</p>`;
                 });
@@ -139,18 +154,42 @@
             window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawPlot, 200); });
         }
 
-        const scriptRegression = document.createElement('script');
-        scriptRegression.src = "https://cdn.jsdelivr.net/npm/d3-regression@1.3.10/dist/d3-regression.min.js";
-        scriptRegression.onload = () => { console.log("d3-regression loaded."); initCharts(); };
-        scriptRegression.onerror = () => { console.error("Failed to load d3-regression. Trendlines may not be available."); initCharts(); };
-        document.head.appendChild(scriptRegression);
+        function main() {
+            const scriptRegression = document.createElement('script');
+            scriptRegression.src = "https://cdn.jsdelivr.net/npm/d3-regression@1.3.10/dist/d3-regression.min.js";
 
-        setTimeout(() => { // Fallback if script load events don't fire or are too slow
-            if (!window.chartsInitialized) {
-                 console.warn("d3-regression script load timeout. Initializing charts.");
-                 initCharts();
-            }
-        }, 3000);
+            let regressionLoaded = false;
+
+            scriptRegression.onload = () => {
+                console.log("d3-regression loaded.");
+                regressionLoaded = true;
+                if (!window.chartsInitialized) initCharts();
+            };
+            scriptRegression.onerror = () => {
+                console.error("Failed to load d3-regression. Trendlines may not be available.");
+                regressionLoaded = true; // Still counts as "handled" for timeout purposes
+                if (!window.chartsInitialized) initCharts();
+            };
+            document.head.appendChild(scriptRegression);
+
+            setTimeout(() => {
+                if (!regressionLoaded && !window.chartsInitialized) { // If script hasn't loaded/errored and charts not init'd
+                     console.warn("d3-regression script load timeout. Initializing charts (trendlines might be affected).");
+                     initCharts();
+                } else if (regressionLoaded && !window.chartsInitialized) {
+                    // This case means onload/onerror fired but initCharts wasn't called, which shouldn't happen with current logic
+                    // but as a safeguard:
+                    console.log("Regression script processed, ensuring charts initialize.");
+                    initCharts();
+                }
+            }, 3000); // Wait 3 seconds for d3-regression script
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', main);
+        } else {
+            main(); // DOMContentLoaded has already fired
+        }
     </script>
 </body>
 </html>
