@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = ["pandas"]
+# ///
 """Prepare scatter plot data from GoodReads file"""
 from __future__ import annotations
 
