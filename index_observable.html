@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goodreads Book Insights (Observable Plot)</title>
+
+    <!-- Google Fonts: Merriweather for headings, Roboto for body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Observable Plot CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@latest"></script>
+
+    <style>
+        /* Basic Reset and Defaults */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa; /* Light off-white/soft gray */
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #2c3e50; /* Muted blue/charcoal */
+            color: #ecf0f1; /* Light text for header */
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 3px solid #bdc3c7; /* Accent border */
+        }
+
+        header h1 {
+            font-family: 'Merriweather', serif;
+            font-weight: 700;
+            font-size: 2.2rem;
+            margin-bottom: 0.25rem;
+        }
+         header p {
+            font-size: 1rem;
+            color: #e0e0e0;
+        }
+
+        main {
+            flex-grow: 1;
+            width: 100%;
+            max-width: 1200px; /* Max container width */
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .chart-section {
+            background-color: #ffffff; /* White background for chart sections */
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-section h2 {
+            font-family: 'Merriweather', serif;
+            font-weight: 700; /* Ensure bold weight is applied */
+            font-size: 1.8rem;
+            margin-bottom: 5px; /* Reduced margin to bring explanation closer */
+            color: #34495e; /* Darker muted blue */
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .chart-explanation {
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 15px; /* Margin after the explanation */
+            max-width: 90%; /* Constrain width for readability */
+        }
+
+        .chart-container { /* This will hold the Observable Plot charts */
+            width: 100%;
+            min-height: 450px; /* Minimum height for plots, adjust as needed */
+            margin-bottom: 20px; /* Space below each chart */
+        }
+
+        /* Loading Spinner Styles - same as before */
+        .loading-spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid #8662C6; /* Muted Purple */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        footer {
+            background-color: #2c3e50; /* Muted blue/charcoal */
+            color: #ecf0f1;
+            text-align: center;
+            padding: 1rem;
+            margin-top: auto; /* Pushes footer to bottom */
+            font-size: 0.9rem;
+        }
+        footer a {
+            color: #a7d7f9; /* Lighter blue for links in footer */
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+            .chart-section h2 {
+                font-size: 1.5rem;
+            }
+            .chart-explanation {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-spinner-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <header>
+        <h1>Goodreads Book Insights</h1>
+        <p>Exploring Relationships with Observable Plot</p>
+    </header>
+
+    <main>
+        <section class="chart-section" id="plot1-section">
+            <h2>Book Density: Reviews vs. Total Ratings</h2>
+            <p class="chart-explanation" id="plot1Explanation">Loading explanation...</p>
+            <div id="plot1Container" class="chart-container">
+                <!-- Observable Plot chart 1 will be rendered here -->
+            </div>
+        </section>
+
+        <section class="chart-section" id="plot2-section">
+            <h2>Rating Distribution by Page Count</h2>
+            <p class="chart-explanation" id="plot2Explanation">Loading explanation...</p>
+            <div id="plot2Container" class="chart-container">
+                <!-- Observable Plot chart 2 will be rendered here -->
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Data Visualization by Jules (AI Agent). Data from <a href="https://www.kaggle.com/datasets/bahramjannesarr/goodreads-book-datasets-100k" target="_blank" rel="noopener noreferrer">Goodreads 100k Books Dataset on Kaggle</a>.
+        Powered by <a href="https://observablehq.com/plot/" target="_blank" rel="noopener noreferrer">Observable Plot</a>.</p>
+    </footer>
+
+    <script type="module"> // Important: type="module" for Observable Plot
+        // Alias Plot for convenience
+        const Plot = ObservableHQ.Plot;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const plot1Container = document.getElementById('plot1Container');
+            const plot2Container = document.getElementById('plot2Container');
+            const plot1Explanation = document.getElementById('plot1Explanation');
+            const plot2Explanation = document.getElementById('plot2Explanation');
+
+            loadingOverlay.classList.remove('hidden');
+
+            async function fetchDataAndCreatePlots() {
+                try {
+                    const response = await fetch('goodreads_plotly_data.json'); // Using the same JSON
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    console.log("Data loaded successfully for Observable Plot:", data.length, "records");
+
+                    loadingOverlay.classList.add('hidden');
+
+                    if (data && data.length > 0) {
+                        createPlot1(data);
+                        createPlot2(data);
+                    } else {
+                        plot1Container.innerHTML = "<p>No data available to display plots.</p>";
+                        plot1Explanation.textContent = "";
+                        plot2Container.innerHTML = "<p>No data available to display plots.</p>";
+                        plot2Explanation.textContent = "";
+                    }
+
+                } catch (error) {
+                    console.error("Failed to load or process data:", error);
+                    loadingOverlay.classList.add('hidden');
+                    plot1Container.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
+                    plot1Explanation.textContent = "";
+                    plot2Container.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
+                    plot2Explanation.textContent = "";
+                }
+            }
+
+            function createPlot1(data) {
+                console.log("Creating Observable Plot 1 (Density Heatmap)...");
+                plot1Explanation.textContent = "Density map showing concentration of books by review and total rating counts. Darker areas indicate higher density.";
+
+                const plot1 = Plot.plot({
+                    marks: [
+                        Plot.density(data, {
+                            x: "reviews",
+                            y: "totalratings",
+                            fill: "density",
+                            bandwidth: 20, // Adjust bandwidth for smoothness
+                            thresholds: 10 // Number of contour thresholds
+                        }),
+                        Plot.tip(data, Plot.pointer({ // Add tooltips - basic, shows point data
+                            x: "reviews",
+                            y: "totalratings",
+                            title: d => `${d.title}\nReviews: ${d.reviews}\nTotal Ratings: ${d.totalratings}`
+                        }))
+                    ],
+                    grid: true,
+                    nice: true,
+                    color: {
+                        scheme: "Blues", // Matches existing theme
+                        legend: true,
+                        label: "Book Density"
+                    },
+                    marginLeft: 70,
+                    marginBottom: 50,
+                    width: plot1Container.clientWidth, // Responsive width
+                    height: 450, // Fixed height, or responsive
+                    x: { label: "Number of Text Reviews" },
+                    y: { label: "Total Number of Ratings Received" }
+                });
+
+                plot1Container.innerHTML = ''; // Clear placeholder
+                plot1Container.appendChild(plot1);
+                // Make it responsive on resize
+                window.addEventListener('resize', () => {
+                    const resizedPlot1 = Plot.plot({
+                        marks: [
+                            Plot.density(data, { x: "reviews", y: "totalratings", fill: "density", bandwidth: 20, thresholds: 10 }),
+                            Plot.tip(data, Plot.pointer({ x: "reviews", y: "totalratings", title: d => `${d.title}\nReviews: ${d.reviews}\nTotal Ratings: ${d.totalratings}`}))
+                        ],
+                        grid: true, nice: true,
+                        color: { scheme: "Blues", legend: true, label: "Book Density" },
+                        marginLeft: 70, marginBottom: 50,
+                        width: plot1Container.clientWidth, height: 450,
+                        x: { label: "Number of Text Reviews" },
+                        y: { label: "Total Number of Ratings Received" }
+                    });
+                    plot1Container.innerHTML = '';
+                    plot1Container.appendChild(resizedPlot1);
+                });
+            }
+
+            function createPlot2(data) {
+                console.log("Creating Observable Plot 2 (Box Plots)...");
+                plot2Explanation.textContent = "Distribution of average book ratings across different page count categories. Each box shows median, quartiles, and potential outliers.";
+
+                // Ensure page_group is ordered correctly for the x-axis
+                const pageGroupOrder = ['0-100', '101-200', '201-300', '301-400', '401-500', '501-600', '601-700', '701-800', '800+'];
+                // Filter data to include only page_groups that are actually present to avoid issues with empty categories if any
+                const presentPageGroups = pageGroupOrder.filter(group => data.some(d => d.page_group === group));
+
+
+                const plot2 = Plot.plot({
+                    marks: [
+                        Plot.boxY(data, {
+                            x: "page_group",
+                            y: "rating",
+                            fill: "#8662C6", // Muted Purple, from our theme
+                            stroke: "#503A77" // Darker purple for border
+                        }),
+                        Plot.tip(data, Plot.pointer({ // Tooltip for individual points (mainly outliers here)
+                            x: "page_group",
+                            y: "rating",
+                            title: d => `${d.title}\nRating: ${d.rating.toFixed(2)}\nPage Group: ${d.page_group}`
+                        }))
+                    ],
+                    x: {
+                        domain: presentPageGroups, // Explicitly set domain to maintain order and include only present groups
+                        label: "Page Count Category"
+                    },
+                    y: {
+                        grid: true,
+                        label: "Average Rating (out of 5)",
+                        domain: [0, 5.2] // Consistent Y-axis range
+                    },
+                    color: { // Not strictly needed for box fill if set in mark, but good for consistency
+                        // fill: "#8662C6"
+                    },
+                    marginLeft: 70,
+                    marginBottom: 80, // Increased for potentially rotated x-axis labels if needed
+                    width: plot2Container.clientWidth,
+                    height: 450
+                });
+
+                plot2Container.innerHTML = ''; // Clear placeholder
+                plot2Container.appendChild(plot2);
+
+                window.addEventListener('resize', () => {
+                    const resizedPlot2 = Plot.plot({
+                        marks: [
+                            Plot.boxY(data, { x: "page_group", y: "rating", fill: "#8662C6", stroke: "#503A77" }),
+                            Plot.tip(data, Plot.pointer({ x: "page_group", y: "rating", title: d => `${d.title}\nRating: ${d.rating.toFixed(2)}\nPage Group: ${d.page_group}`}))
+                        ],
+                        x: { domain: presentPageGroups, label: "Page Count Category" },
+                        y: { grid: true, label: "Average Rating (out of 5)", domain: [0, 5.2] },
+                        marginLeft: 70, marginBottom: 80,
+                        width: plot2Container.clientWidth, height: 450
+                    });
+                    plot2Container.innerHTML = '';
+                    plot2Container.appendChild(resizedPlot2);
+                });
+            }
+
+            fetchDataAndCreatePlots();
+        });
+    </script>
+</body>
+</html>
