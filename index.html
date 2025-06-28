@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Data Scatter Plots</title>
+    <style>
+        body { font-family: "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #f9f9f9; color: #333; }
+        .chart-container { width: 95%; margin: 20px auto; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        svg { display: block; width: 100%; height: 350px; }
+        .axis path, .axis line { fill: none; stroke: #ccc; shape-rendering: crispEdges; }
+        .axis text { font-size: 10px; fill: #555; }
+        .grid line { stroke: #eee; stroke-dasharray: 2,2; }
+        .tooltip { position: absolute; text-align: center; padding: 6px; font-size: 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; pointer-events: none; opacity: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .trend-line { fill: none; stroke: orange; stroke-width: 2px; }
+        footer { text-align: center; padding: 15px; font-size: 0.9em; color: #777; margin-top: 20px; }
+        footer a { color: steelblue; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="chart-container" id="chart1"></div>
+    <div class="chart-container" id="chart2"></div>
+    <div class="chart-container" id="chart3"></div>
+
+    <footer>
+        Visualizations by Jules (AI Agent). Data source: <a href="https://www.kaggle.com/datasets/bahramjannesarr/goodreads-book-datasets-100k" target="_blank">GoodReads_100k_books on Kaggle</a>.
+    </footer>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        const plotHeight = 350;
+        const plotMargin = { top: 20, right: 30, bottom: 50, left: 60 };
+
+        async function loadDataAndDrawCharts() {
+            const data = await d3.json("scatter_data.json");
+
+            const validData1 = data.filter(d => d.pages != null && d.rating != null);
+            const validData2 = data.filter(d => d.blurb != null && d.rating != null);
+            const validData3 = data.filter(d => d.reviews != null && d.rating != null && d.reviews > 0);
+
+            const charts = [
+                { id: "#chart1", data: validData1, xVal: d => d.pages, yVal: d => d.rating, xLabel: "Pages", yLabel: "Rating" },
+                { id: "#chart2", data: validData2, xVal: d => d.blurb, yVal: d => d.rating, xLabel: "Blurb Length", yLabel: "Rating" },
+                { id: "#chart3", data: validData3, xVal: d => Math.log10(d.reviews), yVal: d => d.rating, xLabel: "log₁₀(Reviews)", yLabel: "Rating" }
+            ];
+
+            charts.forEach(chartConfig => drawScatterPlot(chartConfig));
+
+            window.addEventListener('resize', () => {
+                charts.forEach(chartConfig => {
+                    d3.select(chartConfig.id).select("svg").remove();
+                    drawScatterPlot(chartConfig);
+                });
+            });
+        }
+
+        function drawScatterPlot({ id, data, xVal, yVal, xLabel, yLabel }) {
+            const container = d3.select(id);
+            const containerWidth = container.node().getBoundingClientRect().width;
+            const width = containerWidth - plotMargin.left - plotMargin.right;
+            const height = plotHeight - plotMargin.top - plotMargin.bottom;
+
+            const svg = container.append("svg")
+                .attr("width", containerWidth)
+                .attr("height", plotHeight)
+                .append("g")
+                .attr("transform", `translate(${plotMargin.left},${plotMargin.top})`);
+
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(data, xVal)).nice()
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(data, yVal)).nice()
+                .range([height, 0]);
+
+            // Axes
+            const xAxis = d3.axisBottom(xScale).ticks(Math.max(5, Math.floor(width / 80))).tickSizeOuter(0);
+            const yAxis = d3.axisLeft(yScale).ticks(Math.max(5, Math.floor(height / 40))).tickSizeOuter(0);
+
+            svg.append("g")
+                .attr("class", "axis x-axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(xAxis);
+            svg.append("g")
+                .attr("class", "axis y-axis")
+                .call(yAxis);
+
+            // Gridlines
+            svg.append("g").attr("class", "grid")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).ticks(Math.max(5, Math.floor(width / 80))).tickSize(-height).tickFormat(""));
+            svg.append("g").attr("class", "grid")
+                .call(d3.axisLeft(yScale).ticks(Math.max(5, Math.floor(height / 40))).tickSize(-width).tickFormat(""));
+
+            // Axis labels
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height + plotMargin.bottom - 10)
+                .style("text-anchor", "middle")
+                .style("font-size", "12px")
+                .text(xLabel);
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 0 - plotMargin.left + 15)
+                .attr("x", 0 - (height / 2))
+                .style("text-anchor", "middle")
+                .style("font-size", "12px")
+                .text(yLabel);
+
+            // Tooltip
+            const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+
+            // Points
+            svg.selectAll(".dot")
+                .data(data)
+                .enter().append("circle")
+                .attr("class", "dot")
+                .attr("cx", d => xScale(xVal(d)))
+                .attr("cy", d => yScale(yVal(d)))
+                .attr("r", 6)
+                .style("fill", "steelblue")
+                .style("opacity", 0.2)
+                .on("mouseover", (event, d) => {
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(`${xLabel}: ${xVal(d).toFixed(2)}<br/>${yLabel}: ${yVal(d).toFixed(2)}`)
+                        .style("left", (event.pageX + 5) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", () => tooltip.transition().duration(500).style("opacity", 0));
+
+            // LOESS Trend Line (using d3.regressionLoess from d3-regression plugin if available, or simple version)
+            // For this self-contained example, we'll use a simplified approach or note that D3 itself doesn't have built-in LOESS.
+            // A true LOESS is complex. We will use a simple line for sorted data or skip if too complex for constraints.
+            // Let's use d3.line() and sort data by x-value to simulate a general trend.
+            // This is a simplification. Proper LOESS requires a library or more complex implementation.
+
+            const loessData = data.map(d => ({x: xVal(d), y: yVal(d)})).sort((a,b) => a.x - b.x);
+
+            // A very basic moving average smoother as a proxy for LOESS
+            const windowSize = Math.max(1, Math.floor(loessData.length / 10)); // Adjust window size
+            const smoothedData = [];
+            if (loessData.length >= windowSize) {
+                for (let i = 0; i < loessData.length - windowSize + 1; i++) {
+                    const windowSlice = loessData.slice(i, i + windowSize);
+                    const avgX = d3.mean(windowSlice, d => d.x);
+                    const avgY = d3.mean(windowSlice, d => d.y);
+                    if (avgX != null && avgY != null) smoothedData.push({x: avgX, y: avgY});
+                }
+            }
+
+
+            if (smoothedData.length > 1) {
+                 const line = d3.line()
+                    .x(d => xScale(d.x))
+                    .y(d => yScale(d.y))
+                    .curve(d3.curveBasis); // Using a smoother curve
+
+                svg.append("path")
+                    .datum(smoothedData)
+                    .attr("class", "trend-line")
+                    .attr("d", line);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadDataAndDrawCharts);
+    </script>
+</body>
+</html>
