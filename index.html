@@ -3,82 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Data Scatter Plots</title>
+    <title>The Page Turner's Paradox: A Data Story</title>
     <style>
+        /* NYT-Inspired Aesthetic */
         body {
-            font-family: "Segoe UI", Roboto, sans-serif;
-            background-color: #f8f9fa;
-            color: #212529;
+            font-family: Georgia, 'Times New Roman', Times, serif; /* Serif for narrative */
+            background-color: #fdfdfd; /* Off-white background */
+            color: #333333; /* Dark gray text */
             margin: 0;
-            padding: 0;
+            padding: 20px;
+            line-height: 1.6;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: center; /* Center content */
+        }
+        .story-container {
+            max-width: 800px; /* Max width for readability */
+            width: 100%;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        header h1 {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Sans-serif for main title */
+            font-size: 2.8em;
+            font-weight: bold;
+            margin-bottom: 0.2em;
+            color: #222222;
+        }
+        header p.subtitle {
+            font-size: 1.2em;
+            color: #555555;
+            margin-top: 0;
+        }
+        .narrative-section {
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .narrative-section p {
+            margin-bottom: 1em;
         }
         .chart-container {
-            width: 95%;
-            max-width: 800px;
-            margin-bottom: 20px;
-            background-color: white;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 10px;
+            width: 100%; /* Full width within story-container */
+            margin-bottom: 30px;
+            background-color: #ffffff; /* White background for charts */
+            border-top: 1px solid #e0e0e0; /* Subtle top border */
+            border-bottom: 1px solid #e0e0e0; /* Subtle bottom border */
+            padding: 20px 0; /* Padding top/bottom */
+        }
+        .chart-title { /* Replaces h2 */
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Sans-serif for chart titles */
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: normal;
+            color: #444444;
+            margin-bottom: 15px;
         }
         svg {
             display: block;
             width: 100%;
-            height: 350px;
+            height: 350px; /* Maintain fixed height or make responsive */
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Sans-serif for chart elements */
         }
         .axis path,
         .axis line {
             fill: none;
-            stroke: #6c757d;
+            stroke: #bbbbbb; /* Lighter axis lines */
             shape-rendering: crispEdges;
+            stroke-width: 1px;
         }
         .axis text {
-            font-size: 10px;
-            fill: #495057;
+            font-size: 11px; /* Slightly larger axis text */
+            fill: #555555; /* Softer axis text color */
         }
         .grid line {
-            stroke: #e9ecef;
-            stroke-opacity: 0.7;
+            stroke: #e8e8e8; /* Very light grid lines */
+            stroke-opacity: 0.6;
             shape-rendering: crispEdges;
         }
         .tooltip {
             position: absolute;
             text-align: center;
-            padding: 6px;
+            padding: 8px; /* Slightly larger padding */
             font-size: 12px;
-            background: #343a40;
-            color: white;
-            border: 0px;
-            border-radius: 4px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: rgba(40, 40, 40, 0.9); /* Darker, slightly transparent tooltip */
+            color: #fdfdfd;
+            border: none;
+            border-radius: 3px;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .point { /* Class for scatter points if needed for specific styling */
+            /* fill: #4A90E2; /* Example primary blue */
+            /* opacity: 0.2; */ /* Already set in JS, but could be default here */
         }
         .trend-line {
             fill: none;
-            stroke: orange;
-            stroke-width: 2px;
-        }
-        h2 {
-            text-align: center;
-            font-size: 1.2em;
-            margin-top: 5px;
-            margin-bottom: 10px;
+            stroke: #E67E22; /* Muted orange for trend line */
+            stroke-width: 2px; /* Maintain stroke width */
+            stroke-opacity: 0.85;
         }
         footer {
-            margin-top: 30px;
-            padding: 15px;
+            margin-top: 50px;
+            padding: 20px;
             text-align: center;
-            font-size: 0.9em;
-            color: #6c757d;
+            font-size: 0.95em;
+            color: #777777;
             width: 100%;
-            background-color: #e9ecef;
+            background-color: #f7f7f7; /* Light gray footer background */
+            border-top: 1px solid #e0e0e0;
         }
         footer a {
-            color: #007bff;
+            color: #3B73B8; /* Softer blue for links */
             text-decoration: none;
         }
         footer a:hover {
@@ -88,13 +128,45 @@
 </head>
 <body>
 
-    <div class="chart-container" id="chart1-container"><h2>Pages vs Rating</h2><svg id="chart1"></svg></div>
-    <div class="chart-container" id="chart2-container"><h2>Blurb Length vs Rating</h2><svg id="chart2"></svg></div>
-    <div class="chart-container" id="chart3-container"><h2>log₁₀(Reviews) vs Rating</h2><svg id="chart3"></svg></div>
-    <div class="tooltip"></div>
+    <!-- HTML structure will be added in the next step -->
+    <!-- Placeholder for chart containers and tooltip -->
+    <div class="story-container">
+        <header>
+            <h1>The Page Turner's Paradox</h1>
+            <p class="subtitle">An analysis of over 100,000 books reveals surprising connections between length, description, reader buzz, and critical acclaim.</p>
+        </header>
+
+        <!-- Narrative sections and chart containers will go here -->
+        <div class="narrative-section" id="intro-narrative">
+            <p>In an ocean of books, what elevates a title from mere text to a treasured experience? We analyzed data from GoodReads, looking at book length, blurb verbosity, and reader review volume to understand their dance with overall ratings. The findings paint a nuanced picture of what captivates the modern reader.</p>
+        </div>
+
+        <div class="chart-container" id="chart1-container"><h3 class="chart-title">The Weight of Words: Does Size Matter?</h3><svg id="chart1"></svg></div>
+        <div class="narrative-section" id="chart1-narrative">
+             <p>Common wisdom might suggest that epic tomes are the domain of die-hard fans, while shorter reads cater to broader tastes. Our data shows a gentle rise in average rating as page count increases, up to a certain point. Beyond this, ratings tend to plateau or even slightly dip. Perhaps there's a sweet spot: long enough for depth, but not so long as to deter completion?</p>
+        </div>
+
+        <div class="chart-container" id="chart2-container"><h3 class="chart-title">The Art of the Tease: Blurb Length & First Impressions</h3><svg id="chart2"></svg></div>
+        <div class="narrative-section" id="chart2-narrative">
+            <p>The blurb is a book's first handshake. Does a longer, more detailed introduction promise a richer story and thus garner higher ratings? The connection here is less direct. While extremely short blurbs show slightly lower average ratings, the impact of blurb length diminishes quickly. Quality of prose likely trumps quantity.</p>
+        </div>
+
+        <div class="chart-container" id="chart3-container"><h3 class="chart-title">The Roar of the Crowd: Reviews & Perceived Quality</h3><svg id="chart3"></svg></div>
+        <div class="narrative-section" id="chart3-narrative">
+            <p>A torrent of reviews often signals a book's popularity, but does it always mean it's *better*? Our data reveals a strong positive correlation: books with more reviews tend to have higher ratings. This highlights the power of social proof in the literary marketplace.</p>
+        </div>
+
+        <div class="narrative-section" id="conclusion-narrative">
+            <p>While no single factor guarantees a five-star rating, our exploration suggests that books hitting a 'sweet spot' in length, coupled with a compelling description, are well-positioned. Crucially, books that manage to generate significant reader discussion, reflected in review volume, are most likely to achieve high acclaim.</p>
+            <p>Of course, data tells only part of the story. The magic of a truly great book lies in its narrative, characters, and prose – elements that resist easy quantification.</p>
+        </div>
+
+        <div class="tooltip"></div> <!-- Tooltip remains for D3 -->
+    </div>
 
     <footer>
-        Visualizations by Jules (AI Agent). Data sourced from <a href="https://www.kaggle.com/datasets/jealousleopard/goodreadsbooks" target="_blank" rel="noopener noreferrer">GoodReads Books Dataset on Kaggle</a>.
+        Visualizations by Jules (AI Agent), with inspiration from The New York Times. Data sourced from <a href="https://www.kaggle.com/datasets/jealousleopard/goodreadsbooks" target="_blank" rel="noopener noreferrer">GoodReads Books Dataset on Kaggle</a>.
+        <br>Methodology: Data processed to include book pages, blurb length, review counts, and ratings. Outliers clipped at 0.5-99.5 percentile for numeric fields. Sample of 5,000 books visualized.
     </footer>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -186,8 +258,8 @@
                         .attr("cx", d => xScale(d.x))
                         .attr("cy", d => yScale(d.y))
                         .attr("r", 6)
-                        .style("fill", "steelblue")
-                        .style("opacity", 0.2)
+                        .style("fill", "#5A7A9E") /* Updated point color */
+                        .style("opacity", 0.25) /* Slightly increased opacity */
                         .on("mouseover", (event, d) => {
                             tooltip.transition().style("opacity", .9);
                             let xDisplayValue = d.original[xOriginalKey];
