@@ -1,37 +1,41 @@
-import json
-from pathlib import Path
+#!/usr/bin/env python3
+"""Prepare scatter plot data from GoodReads file"""
+from __future__ import annotations
 
+from pathlib import Path
+import json
 import pandas as pd
+
+CSV_FILE = Path("GoodReads_100k_books.csv.xz")
+JSON_FILE = Path("scatter_data.json")
+MAX_ROWS = 5000
+PERCENTILES = (0.005, 0.995)
+
+
+def load() -> pd.DataFrame:
+    df = pd.read_csv(CSV_FILE, compression="xz", usecols=["pages", "desc", "reviews", "rating"])
+    return df.dropna()
+
+
+def compute_stats(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.assign(blurb=df["desc"].astype(str).str.len())
+    for col in ["pages", "blurb", "reviews", "rating"]:
+        low, high = df[col].quantile(PERCENTILES)
+        df = df[df[col].between(low, high)]
+    return df.sample(n=min(len(df), MAX_ROWS), random_state=42)
+
+
+def save_json(df: pd.DataFrame) -> int:
+    records = df[["pages", "blurb", "reviews", "rating"]].to_dict("records")
+    JSON_FILE.write_text(json.dumps(records, separators=(",", ":")))
+    return JSON_FILE.stat().st_size
 
 
 def main() -> None:
-    """Prepare dataset for visualization."""
-    csv = Path("GoodReads_100k_books.csv.xz")
-    if not csv.exists():
-        print("Dataset missing")
-        return
-    df = pd.read_csv(csv)
-    df = df[["pages", "desc", "reviews", "rating"]].copy()
-    df["pages"] = pd.to_numeric(df["pages"], errors="coerce")
-    df["reviews"] = pd.to_numeric(df["reviews"], errors="coerce")
-    df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
-    df["blurb"] = df["desc"].astype(str).str.len()
-    df = df.dropna()
-
-    cols = ["pages", "blurb", "reviews", "rating"]
-    mask = pd.Series(True, index=df.index)
-    for c in cols:
-        low, high = df[c].quantile([0.005, 0.995])
-        mask &= df[c].between(low, high)
-    df = df[mask]
-
-    n = min(5000, len(df))
-    df = df.sample(n=n, random_state=42)
-    out = df[cols].to_dict("records")
-    data = json.dumps(out, separators=(",", ":"))
-    path = Path("scatter_data.json")
-    path.write_text(data)
-    print(len(data.encode()), "bytes")
+    df = load()
+    df = compute_stats(df)
+    size = save_json(df)
+    print(f"Wrote {size} bytes to {JSON_FILE}")
 
 
 if __name__ == "__main__":
