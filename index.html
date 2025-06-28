@@ -1,144 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Goodreads Books Visualization</title>
-<style>
-  body {
-    font-family: "Segoe UI", "Roboto", sans-serif;
-    background: #fff;
-    color: #222;
-    margin: 0;
-    padding: 1rem
-  }
 
-  svg {
-    width: 100%;
-    height: 350px
-  }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>GoodReads Books Scatter Plots</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+      background: #fdfdfd;
+      color: #222
+    }
 
-  .grid line {
-    stroke: #ccc;
-    stroke-opacity: .3
-  }
+    svg {
+      width: 100%;
+      height: 350px
+    }
 
-  circle {
-    fill: steelblue;
-    opacity: .2
-  }
+    .grid line {
+      stroke: #eee
+    }
 
-  .tooltip {
-    position: absolute;
-    pointer-events: none;
-    background: #fff;
-    border: 1px solid #ccc;
-    padding: 2px 4px;
-    font-size: .8rem
-  }
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: .8rem
+    }
 
-  footer {
-    margin: 2rem 0;
-    font-size: .8rem;
-    text-align: center;
-    color: #555
-  }
+  </style>
+</head>
 
-</style>
-
-<body>
-  <div id="loading">Loading…</div>
+<body class="container py-4">
+  <h1 class="h3 mb-4">GoodReads Books Scatter Plots</h1>
+  <div id="status">Loading data...</div>
   <div id="plots"></div>
-  <footer>Data from <a href="https://www.goodreads.com/">Goodreads</a></footer>
+  <footer class="mt-4 small text-center">Data from <a href="https://goodreads.com">GoodReads</a></footer>
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script type="module">
-    const plots = [{
+    const status = document.getElementById('status')
+    fetch('scatter_data.json').then(r => r.json()).then(d => {
+      status.remove();
+      init(d)
+    }).catch(() => status.textContent = 'Error loading data')
+    const charts = [{
         x: d => d.pages,
-        label: 'Pages',
-        id: 'p'
+        y: d => d.rating,
+        label: 'Pages vs Rating'
       },
       {
         x: d => d.blurb,
-        label: 'Blurb Length',
-        id: 'b'
+        y: d => d.rating,
+        label: 'Blurb Length vs Rating'
       },
       {
         x: d => Math.log10(d.reviews),
-        label: 'log10(Reviews)',
-        id: 'r'
+        y: d => d.rating,
+        label: 'log₁₀(Reviews) vs Rating'
       }
-    ];
-    const load = document.getElementById('loading');
-    fetch('scatter_data.json').then(r => r.json()).then(data => {
-      load.remove();
-      init(data)
-    }).catch(err => {
-      load.textContent = 'Error loading data'
-    });
+    ]
 
     function init(data) {
-      const wrap = document.getElementById('plots');
-      plots.forEach(p => wrap.insertAdjacentHTML('beforeend', `<svg id="${p.id}"></svg>`));
-      const tip = d3.select('body').append('div').attr('class', 'tooltip').style('display', 'none');
-
-      function render() {
-        plots.forEach(cfg => draw(cfg));
-      }
-
-      function draw(cfg) {
-        const svg = d3.select('#' + cfg.id);
-        const box = svg.node().getBoundingClientRect();
-        const margin = {
-          top: 20,
-          right: 30,
-          bottom: 30,
-          left: 40
-        };
-        const w = box.width - margin.left - margin.right;
-        const h = 350 - margin.top - margin.bottom;
-        svg.selectAll('*').remove();
-        const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-        const x = d3.scaleLinear().domain(d3.extent(data, cfg.x)).nice().range([0, w]);
-        const y = d3.scaleLinear().domain(d3.extent(data, d => d.rating)).nice().range([h, 0]);
-        const ax = g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x).ticks(6));
-        const ay = g.append('g').call(d3.axisLeft(y).ticks(6));
-        g.append('g').attr('class', 'grid').call(d3.axisLeft(y).tickSize(-w).tickFormat(''));
-        g.append('g').selectAll('circle').data(data).join('circle').attr('cx', d => x(cfg.x(d))).attr('cy', d => y(d.rating)).attr('r', 3).on('mousemove', (e, d) => {
-          tip.style('display', 'block').style('left', e.pageX + 5 + 'px').style('top', e.pageY + 5 + 'px').html(`${cfg.label}: ${cfg.x(d).toFixed(2)}<br>Rating: ${d.rating}`);
-        }).on('mouseleave', () => tip.style('display', 'none'));
-        const l = loess(data.map(cfg.x), data.map(d => d.rating));
-        const line = d3.line().curve(d3.curveMonotoneX)(l.map(([px, py]) => [x(px), y(py)]));
-        g.append('path').attr('fill', 'none').attr('stroke', 'orange').attr('stroke-width', 2).attr('d', line);
-        g.append('text').attr('x', w / 2).attr('y', h + margin.bottom - 4).attr('text-anchor', 'middle').text(cfg.label);
-        g.append('text').attr('transform', 'rotate(-90)').attr('x', -h / 2).attr('y', -margin.left + 12).attr('text-anchor', 'middle').text('Rating');
-      }
-      window.addEventListener('resize', render);
-      render();
+      const box = document.getElementById('plots');
+      box.innerHTML = ''
+      charts.forEach(c => {
+        box.insertAdjacentHTML('beforeend', `<h2 class="h5">${c.label}</h2><svg></svg>`);
+        draw(box.lastElementChild, data, c)
+      })
+      window.addEventListener('resize', () => box.querySelectorAll('svg').forEach((s, i) => draw(s, data, charts[i])))
     }
 
-    function loess(x, y) {
+    function draw(svg, data, cfg) {
+      svg.innerHTML = '';
+      const w = svg.clientWidth,
+        h = svg.clientHeight,
+        m = 40
+      const x = d3.scaleLinear(d3.extent(data, cfg.x), [m, w - m])
+      const y = d3.scaleLinear(d3.extent(data, cfg.y), [h - m, m])
+      const g = d3.select(svg)
+      g.append('g').attr('transform', `translate(${m},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-w + 2 * m))
+      g.append('g').attr('transform', `translate(0,${h-m})`).call(d3.axisBottom(x).ticks(5).tickSize(-h + 2 * m))
+      g.selectAll('circle').data(data).join('circle').attr('cx', d => x(cfg.x(d))).attr('cy', d => y(cfg.y(d))).attr('r', 6).attr('fill', 'steelblue').attr('opacity', 0.2).append('title').text(d => `${cfg.x(d)}, ${cfg.y(d)}`)
+      const line = d3.line().curve(d3.curveMonotoneX)
+      const loessData = loess(data.map(cfg.x), data.map(cfg.y))
+      g.append('path').attr('fill', 'none').attr('stroke', 'orange').attr('stroke-width', 2).attr('d', line(loessData.map(p => [x(p[0]), y(p[1])])))
+    }
+
+    function loess(x, y, bw = 0.3) {
       const n = x.length,
-        bw = Math.floor(n * .3);
-      return x.map((v, i) => {
-        const s = Math.max(0, i - bw),
-          e = Math.min(n - 1, i + bw);
-        let sx = 0,
+        r = Math.floor(bw * n),
+        idx = d3.range(n).sort((a, b) => x[a] - x[b])
+      x = idx.map(i => x[i]);
+      y = idx.map(i => y[i]);
+      const res = []
+      for (let i = 0; i < n; i++) {
+        const lo = Math.max(0, i - r),
+          hi = Math.min(n - 1, i + r),
+          x0 = x[i];
+        let w = 0,
+          sx = 0,
           sy = 0,
           sxx = 0,
-          sxy = 0,
-          w = 0;
-        for (let j = s; j <= e; j++) {
-          sx += x[j];
-          sy += y[j];
-          sxx += x[j] * x[j];
-          sxy += x[j] * y[j];
-          w++;
+          sxy = 0
+        const slice = d3.range(lo, hi + 1),
+          xS = slice.map(j => x[j]),
+          yS = slice.map(j => y[j])
+        const dist = Math.max(xS[xS.length - 1] - x0, x0 - xS[0]) || 1
+        for (let j = 0; j < xS.length; j++) {
+          const tmp = tricube(Math.abs(xS[j] - x0) / dist);
+          w += tmp;
+          sx += tmp * xS[j];
+          sy += tmp * yS[j];
+          sxx += tmp * xS[j] * xS[j];
+          sxy += tmp * xS[j] * yS[j]
         }
-        const mx = sx / w,
-          my = sy / w;
-        const denom = sxx - sx * mx;
-        const b = denom ? (sxy - sx * my) / denom : 0;
-        return [v, my + b * (v - mx)];
-      });
+        const denom = w * sxx - sx * sx,
+          b = denom ? (w * sxy - sx * sy) / denom : 0,
+          a = (sy - b * sx) / w;
+        res.push([x0, a + b * x0])
+      }
+      return res
+    }
+    const tricube = t => {
+      t = Math.abs(t);
+      t = 1 - t * t * t;
+      return t * t * t
     }
 
   </script>
