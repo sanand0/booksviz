@@ -69,11 +69,20 @@
 
         .chart-section h2 {
             font-family: 'Merriweather', serif;
+            font-weight: 700; /* Ensure bold weight is applied */
             font-size: 1.8rem;
-            margin-bottom: 15px;
+            margin-bottom: 5px; /* Reduced margin to bring explanation closer */
             color: #34495e; /* Darker muted blue */
             border-bottom: 2px solid #e0e0e0;
             padding-bottom: 10px;
+        }
+
+        .chart-explanation {
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 15px; /* Margin after the explanation */
+            max-width: 90%; /* Constrain width for readability */
         }
 
         .chart-container {
@@ -155,6 +164,7 @@
     <main>
         <section class="chart-section" id="plot1-section">
             <h2>Reviews vs. Total Ratings</h2>
+            <p class="chart-explanation" id="plot1Explanation">Loading explanation...</p>
             <div id="plot1Container" class="chart-container">
                 <!-- Plotly chart 1 will be rendered here -->
             </div>
@@ -162,6 +172,7 @@
 
         <section class="chart-section" id="plot2-section">
             <h2>Page Count vs. Average Rating</h2>
+            <p class="chart-explanation" id="plot2Explanation">Loading explanation...</p>
             <div id="plot2Container" class="chart-container">
                 <!-- Plotly chart 2 will be rendered here -->
             </div>
@@ -214,25 +225,22 @@
                 const trace1 = {
                     x: data.map(d => d.reviews),
                     y: data.map(d => d.totalratings),
-                    mode: 'markers',
-                    type: 'scatter',
-                    text: data.map(d => `Title: ${d.title}<br>Author: ${d.author}<br>Avg Rating: ${d.rating.toFixed(2)}<br>Pages: ${d.pages}`),
-                    hovertemplate: `<b>%{text}</b><br>Reviews: %{x:,}<br>Total Ratings: %{y:,}<extra></extra>`,
-                    marker: {
-                        color: '#5DADE2', // Muted Blue
-                        opacity: 0.6,
-                        size: 7,
-                        symbol: 'circle',
-                        line: {
-                            width: 0.5,
-                            color: '#34495E' // Darker Muted Blue for marker border
-                        }
-                    }
+                    type: 'histogram2d',
+                    colorscale: 'Blues', // Muted blue theme
+                    reversescale: false, // Darker for more concentration
+                    showscale: true, // Show color scale bar
+                    xbins: {
+                        size: 50 // Adjust bin size as needed, depends on data range after IQR
+                    },
+                    ybins: {
+                        size: 2000 // Adjust bin size as needed
+                    },
+                    hovertemplate: 'Reviews: %{x}<br>Total Ratings: %{y}<br>Count: %{z}<extra></extra>'
                 };
 
                 const layout1 = {
                     title: {
-                        text: 'Impact of Review Volume on Overall Rating Count',
+                        text: 'Book Concentration: Review Count vs. Total Ratings',
                         font: { family: 'Merriweather, serif', size: 18, color: '#34495E' }
                     },
                     xaxis: {
@@ -247,55 +255,6 @@
                         gridcolor: '#e9e9e9',
                         zerolinecolor: '#d9d9d9'
                     },
-                    hovermode: 'closest',
-                    plot_bgcolor: '#fdfdfd', // Slightly off-white for plot area
-                    paper_bgcolor: '#ffffff', // White for paper background (chart section bg)
-                    margin: { l: 70, r: 30, b: 60, t: 70, pad: 4 }, // Adjusted margins
-                    font: { family: 'Roboto, sans-serif', color: '#333' } // Default font for the plot
-                };
-
-                const config = { responsive: true, displaylogo: false };
-                Plotly.newPlot(plot1Container, [trace1], layout1, config);
-            }
-
-            function createPlot2(data) {
-                const trace2 = {
-                    x: data.map(d => d.pages),
-                    y: data.map(d => d.rating), // This is average_rating
-                    mode: 'markers',
-                    type: 'scatter',
-                    text: data.map(d => `Title: ${d.title}<br>Author: ${d.author}<br>Reviews: ${d.reviews.toLocaleString()}<br>Total Ratings: ${d.totalratings.toLocaleString()}`),
-                    hovertemplate: `<b>%{text}</b><br>Pages: %{x:,}<br>Avg Rating: %{y:.2f}<extra></extra>`,
-                    marker: {
-                        color: '#82E0AA', // Muted Green
-                        opacity: 0.6,
-                        size: 7,
-                        symbol: 'circle',
-                        line: {
-                            width: 0.5,
-                            color: '#28B463' // Darker Muted Green
-                        }
-                    }
-                };
-
-                const layout2 = {
-                    title: {
-                        text: 'Influence of Page Count on Average Book Rating',
-                        font: { family: 'Merriweather, serif', size: 18, color: '#34495E' }
-                    },
-                    xaxis: {
-                        title: 'Number of Pages',
-                        titlefont: { family: 'Roboto, sans-serif', size: 14, color: '#555' },
-                        gridcolor: '#e9e9e9',
-                        zerolinecolor: '#d9d9d9'
-                    },
-                    yaxis: {
-                        title: 'Average Rating (out of 5)',
-                        titlefont: { family: 'Roboto, sans-serif', size: 14, color: '#555' },
-                        gridcolor: '#e9e9e9',
-                        zerolinecolor: '#d9d9d9'
-                    },
-                    hovermode: 'closest',
                     plot_bgcolor: '#fdfdfd',
                     paper_bgcolor: '#ffffff',
                     margin: { l: 70, r: 30, b: 60, t: 70, pad: 4 },
@@ -303,7 +262,85 @@
                 };
 
                 const config = { responsive: true, displaylogo: false };
+                Plotly.newPlot(plot1Container, [trace1], layout1, config);
+                document.getElementById('plot1Explanation').textContent = "Shows the concentration of books based on their number of text reviews and total ratings. Darker areas indicate more books in that specific review/rating range.";
+            }
+
+            function createPlot2(data) {
+                // Data for box plots needs to be grouped by page_group
+                // Plotly can do this if we provide x as page_group and y as rating for each point.
+                // Or, we can create one trace per page_group. The former is simpler.
+
+                const trace2 = {
+                    type: 'box',
+                    x: data.map(d => d.page_group), // Page groups
+                    y: data.map(d => d.rating),    // Average ratings
+                    // To ensure order, we might need to sort unique page_groups if Plotly doesn't by default.
+                    // The `page_labels` from preprocessing are already sorted.
+                    // Plotly should respect the order of appearance for categorical axes if not specified.
+                    // Let's define the order explicitly to be safe, matching preprocess_plotly.py
+                    // categoryorder: 'array',
+                    // categoryarray: ['0-100', '101-200', '201-300', '301-400', '401-500', '501-600', '601-700', '701-800', '800+'],
+                    // The above categoryorder is a layout property, not trace.
+
+                    boxpoints: 'outliers', // Show outliers
+                    jitter: 0.3, // Spread out points if showing all points
+                    pointpos: -1.8, // Position of points
+                    marker: {
+                        color: '#8662C6', // Muted Purple
+                        // opacity: 0.7 // Opacity for individual points if shown
+                    },
+                    line: {
+                        color: '#503A77' // Darker purple for box lines
+                    },
+                    // hovertemplate: not as straightforward for box plots per point unless using 'all' boxpoints.
+                    // Default hover for box plots shows summary stats (median, quartiles, etc.)
+                };
+
+                const layout2 = {
+                    title: {
+                        text: 'Distribution of Book Ratings by Page Count Category',
+                        font: { family: 'Merriweather, serif', size: 18, color: '#34495E' }
+                    },
+                    xaxis: {
+                        title: 'Page Count Category',
+                        titlefont: { family: 'Roboto, sans-serif', size: 14, color: '#555' },
+                        type: 'category', // Ensure it's treated as categorical
+                        // Explicitly set category order to match bins from preprocessing
+                        categoryorder: 'array',
+                        categoryarray: ['0-100', '101-200', '201-300', '301-400', '401-500', '501-600', '601-700', '701-800', '800+'].filter(
+                            // Filter out empty categories to prevent display issues if some groups have no data
+                            // This requires knowing which groups have data, or Plotly might handle empty categories gracefully.
+                            // Let's rely on Plotly to handle potentially empty categories from the full list.
+                            // If a category in categoryarray has no data points, it's usually just not drawn.
+                            label => data.some(d => d.page_group === label)
+                        ),
+                        gridcolor: '#e9e9e9',
+                        zerolinecolor: '#d9d9d9'
+                    },
+                    yaxis: {
+                        title: 'Average Rating (out of 5)',
+                        titlefont: { family: 'Roboto, sans-serif', size: 14, color: '#555' },
+                        gridcolor: '#e9e9e9',
+                        zerolinecolor: '#d9d9d9',
+                        range: [0, 5.2] // Ratings are typically 0-5
+                    },
+                    plot_bgcolor: '#fdfdfd',
+                    paper_bgcolor: '#ffffff',
+                    margin: { l: 70, r: 30, b: 80, t: 70, pad: 4 }, // Increased bottom margin for category labels
+                    font: { family: 'Roboto, sans-serif', color: '#333' }
+                };
+                // Refine categoryarray to only include groups present in the data to avoid empty spaces
+                const presentPageGroups = [...new Set(data.map(d => d.page_group))].sort((a, b) => {
+                    const order = ['0-100', '101-200', '201-300', '301-400', '401-500', '501-600', '601-700', '701-800', '800+'];
+                    return order.indexOf(a) - order.indexOf(b);
+                });
+                layout2.xaxis.categoryarray = presentPageGroups;
+
+
+                const config = { responsive: true, displaylogo: false };
                 Plotly.newPlot(plot2Container, [trace2], layout2, config);
+                document.getElementById('plot2Explanation').textContent = "Displays the distribution of average ratings (median, quartiles, outliers) for books, grouped by different page count categories.";
             }
 
             fetchDataAndCreatePlots();

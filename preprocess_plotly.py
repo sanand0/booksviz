@@ -197,8 +197,31 @@ def main():
     # Prepare final data for JSON. Names should be:
     # title, author, pages, reviews, totalratings, rating (for average_rating)
     # All these names are already columns in df.
-    output_df = df[['title', 'author', 'pages', 'reviews', 'totalratings', 'rating']].copy()
-    # No rename needed here if 'rating' is already the average rating column name.
+
+    # Create page_group bins
+    # First, let's see the distribution of 'pages' after IQR to define sensible bins
+    print("Page column statistics after IQR and before sampling (if any):")
+    print(df['pages'].describe(percentiles=[.1, .25, .5, .75, .9, .95, .99]))
+
+    # Define bins and labels based on typical book lengths and the distribution
+    # These bins are chosen to give a reasonable number of categories for the box plot.
+    # Max pages after IQR was around 700-800 in previous runs, but let's make bins flexible.
+    # The IQR for pages was: 73922 rows left. Let's assume a typical max around 800-1000 pages post-IQR.
+    page_bins = [0, 100, 200, 300, 400, 500, 600, 700, 800, np.inf]
+    page_labels = ['0-100', '101-200', '201-300', '301-400', '401-500', '501-600', '601-700', '701-800', '800+']
+
+    # If the max pages is much lower, these bins might be too granular at the top end or create empty groups.
+    # Let's make the bins dynamic based on max_pages after IQR, or use fixed sensible ones.
+    # Given IQR removed outliers, max pages should be somewhat reasonable.
+    # The previous run showed page IQR left values up to a certain point.
+    # Max from describe() will inform this. For now, fixed bins are okay.
+
+    df['page_group'] = pd.cut(df['pages'], bins=page_bins, labels=page_labels, right=True, include_lowest=True)
+    print("\nPage group distribution:")
+    print(df['page_group'].value_counts().sort_index())
+
+    # Ensure 'page_group' is included in the output
+    output_df = df[['title', 'author', 'pages', 'reviews', 'totalratings', 'rating', 'page_group']].copy()
 
     output_data = output_df.to_dict(orient='records')
 
