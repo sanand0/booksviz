@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Data Scatter Plots</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #f9f9f9; color: #333; }
+        .chart-container { width: 95%; margin: 20px auto; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        svg { display: block; width: 100%; height: 350px; }
+        .axis path, .axis line { fill: none; stroke: #ccc; shape-rendering: crispEdges; }
+        .axis text { font-size: 10px; fill: #555; }
+        .grid line { stroke: #e5e5e5; stroke-opacity: 0.7; shape-rendering: crispEdges; }
+        .tooltip { position: absolute; text-align: center; width: auto; padding: 5px; font: 10px sans-serif; background: lightsteelblue; border: 0px; border-radius: 3px; pointer-events: none; opacity: 0; }
+        .trendline { fill: none; stroke: orange; stroke-width: 2px; }
+        footer { text-align: center; padding: 15px; font-size: 0.9em; color: #777; margin-top: 20px; }
+        footer a { color: steelblue; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="chart-container" id="chart1-pages-rating"></div>
+    <div class="chart-container" id="chart2-blurb-rating"></div>
+    <div class="chart-container" id="chart3-reviews-rating"></div>
+
+    <footer>
+        Visualizations by Jules (AI Agent). Data sourced from <a href="https://www.kaggle.com/datasets/bahramjannesarr/goodreads-book-datasets-100k" target="_blank">GoodReads Books Dataset</a>.
+    </footer>
+
+    <script>
+        const PLOT_CONFIG = [
+            { id: "chart1-pages-rating", xVar: "pages", yVar: "rating", xLabel: "Pages", yLabel: "Rating", title: "Pages vs Rating" },
+            { id: "chart2-blurb-rating", xVar: "blurb", yVar: "rating", xLabel: "Blurb Length", yLabel: "Rating", title: "Blurb Length vs Rating" },
+            { id: "chart3-reviews-rating", xVar: "reviews", yVar: "rating", xLabel: "log₁₀(Reviews)", yLabel: "Rating", title: "log₁₀(Reviews) vs Rating", xLog: true }
+        ];
+
+        const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+
+        async function initCharts() {
+            window.chartsInitialized = true; // Flag for timeout logic
+            const data = await d3.json("scatter_data.json");
+            if (!data || data.length === 0) {
+                console.error("Failed to load data or data is empty.");
+                PLOT_CONFIG.forEach(cfg => {
+                    document.getElementById(cfg.id).innerHTML = `<p style='text-align:center; padding:20px;'>Error loading data for ${cfg.title}.</p>`;
+                });
+                return;
+            }
+            PLOT_CONFIG.forEach(cfg => createScatterPlot(data, cfg));
+        }
+
+        function createScatterPlot(allData, config) {
+            const data = allData.map(d => ({
+                x: config.xLog ? (d[config.xVar] > 0 ? Math.log10(d[config.xVar]) : null) : d[config.xVar],
+                y: d[config.yVar],
+                originalX: d[config.xVar],
+                originalY: d[config.yVar]
+            })).filter(d => d.x !== null && d.y !== null && isFinite(d.x) && isFinite(d.y));
+
+            const container = d3.select("#" + config.id);
+            const svg = container.select("svg").node() ? container.select("svg") : container.append("svg"); // Reuse or create SVG
+            const margin = { top: 40, right: 30, bottom: 50, left: 50 };
+
+            function getChartDimensions() {
+                const containerWidth = container.node().getBoundingClientRect().width;
+                return {
+                    width: containerWidth - margin.left - margin.right,
+                    height: 350 - margin.top - margin.bottom,
+                    containerWidth: containerWidth
+                };
+            }
+
+            function drawPlot() {
+                svg.selectAll("*").remove(); // Clear svg content before drawing/redrawing
+                const dims = getChartDimensions();
+                if (dims.width <= 0 || dims.height <=0) return;
+
+                svg.attr("viewBox", `0 0 ${dims.containerWidth} 350`);
+                const chart = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+                const xScale = d3.scaleLinear().domain(d3.extent(data, d => d.x)).range([0, dims.width]).nice();
+                const yScale = d3.scaleLinear().domain(d3.extent(data, d => d.y)).range([dims.height, 0]).nice();
+
+                chart.append("g").attr("class", "grid").attr("transform", `translate(0,${dims.height})`)
+                    .call(d3.axisBottom(xScale).ticks(Math.max(5, Math.floor(dims.width / 80))).tickSize(-dims.height).tickFormat(""));
+                chart.append("g").attr("class", "grid")
+                    .call(d3.axisLeft(yScale).ticks(Math.max(5, Math.floor(dims.height / 40))).tickSize(-dims.width).tickFormat(""));
+
+                chart.append("g").attr("class", "axis axis--x").attr("transform", `translate(0,${dims.height})`)
+                    .call(d3.axisBottom(xScale).ticks(Math.max(5, Math.floor(dims.width / 80))).tickPadding(8));
+                chart.append("g").attr("class", "axis axis--y")
+                    .call(d3.axisLeft(yScale).ticks(Math.max(5, Math.floor(dims.height / 40))).tickPadding(8));
+
+                svg.append("text").attr("class","axis-label").attr("text-anchor", "middle")
+                    .attr("x", margin.left + dims.width / 2).attr("y", dims.height + margin.top + margin.bottom - 10).text(config.xLabel);
+                svg.append("text").attr("class","axis-label").attr("text-anchor", "middle")
+                    .attr("transform", `translate(${margin.left/2 - 10}, ${margin.top + dims.height/2})rotate(-90)`).text(config.yLabel);
+                svg.append("text").attr("class","plot-title").attr("text-anchor", "middle")
+                    .attr("x", margin.left + dims.width / 2).attr("y", margin.top / 2 + 5)
+                    .style("font-size", "14px").style("font-weight", "bold").text(config.title);
+
+                chart.selectAll(".dot").data(data).enter().append("circle").attr("class", "dot")
+                    .attr("cx", d => xScale(d.x)).attr("cy", d => yScale(d.y)).attr("r", 6)
+                    .style("fill", "steelblue").style("opacity", 0.2)
+                    .on("mouseover", (event, d) => {
+                        tooltip.transition().duration(200).style("opacity", .9);
+                        let xVal = config.xLog ? d.originalX.toFixed(2) : (Number.isInteger(d.x) ? d.x : d.x.toFixed(2));
+                        if (config.xLog && d.originalX > 1000 && d.originalX < 1e7) xVal = Math.round(d.originalX); else if (config.xLog && d.originalX >=1e7) xVal = d.originalX.toExponential(1);
+                        else if (!config.xLog && d.x > 10000 && d.x < 1e7) xVal = Math.round(d.x); else if (!config.xLog && d.x >= 1e7) xVal = d.x.toExponential(1);
+                        tooltip.html(`${config.xLabel}: ${xVal}<br/>${config.yLabel}: ${d.y.toFixed(2)}`)
+                            .style("left", (event.pageX + 5) + "px").style("top", (event.pageY - 28) + "px");
+                    }).on("mouseout", () => tooltip.transition().duration(500).style("opacity", 0));
+
+                if (data.length > 10 && (typeof d3.regressionLoess !== 'undefined' || typeof d3.regressionPoly !== 'undefined')) {
+                    try {
+                        let regressionData;
+                        const validDataForRegression = data.filter(d => d.x != null && d.y != null && isFinite(d.x) && isFinite(d.y)).sort((a,b) => a.x - b.x);
+                        if (validDataForRegression.length < 2) return; // Not enough data for regression
+
+                        if (typeof d3.regressionLoess !== 'undefined') { // Prefer LOESS
+                            const loess = d3.regressionLoess().x(d => d.x).y(d => d.y).bandwidth(0.5);
+                            regressionData = loess(validDataForRegression);
+                        } else if (typeof d3.regressionPoly !== 'undefined') { // Fallback to polynomial
+                            const degree = Math.min(3, Math.max(1, Math.floor(validDataForRegression.length / 20)));
+                            regressionData = d3.regressionPoly().x(d => d.x).y(d => d.y).order(degree)(validDataForRegression);
+                        }
+
+                        if (regressionData && regressionData.length > 1) {
+                            const line = d3.line().x(d => xScale(d[0])).y(d => yScale(d[1])).curve(d3.curveBasis);
+                            chart.append("path").datum(regressionData).attr("class", "trendline").attr("d", line);
+                        }
+                    } catch (e) { console.warn(`Trendline generation failed for ${config.title}:`, e); }
+                }
+            }
+
+            drawPlot();
+            let resizeTimer;
+            window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawPlot, 200); });
+        }
+
+        const scriptRegression = document.createElement('script');
+        scriptRegression.src = "https://cdn.jsdelivr.net/npm/d3-regression@1.3.10/dist/d3-regression.min.js";
+        scriptRegression.onload = () => { console.log("d3-regression loaded."); initCharts(); };
+        scriptRegression.onerror = () => { console.error("Failed to load d3-regression. Trendlines may not be available."); initCharts(); };
+        document.head.appendChild(scriptRegression);
+
+        setTimeout(() => { // Fallback if script load events don't fire or are too slow
+            if (!window.chartsInitialized) {
+                 console.warn("d3-regression script load timeout. Initializing charts.");
+                 initCharts();
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
